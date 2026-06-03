@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi_p_g"
+version = "0.1.0"
+description = "Multi-process gRPC service"
+requires-python = ">=3.12"
+dependencies = [
+  "dynaconf>=3.2",
+  "grpcio>=1.60",
+  "protobuf>=4.25",
+]
+
+[project.optional-dependencies]
+dev = [
+  "grpcio-tools>=1.60",
+]
+
+[project.scripts]
+multi_p_g = "multi_p_g.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["multi_p_g*"]

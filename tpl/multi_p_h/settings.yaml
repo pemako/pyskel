@@ -1,0 +1,45 @@
+---
+service:
+  host: 127.0.0.1
+  port: 8000
+  workers: 4
+
+logs:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    base:
+      format: "%(asctime)s %(levelname)s %(name)s [pid=%(process)d] - %(message)s"
+    access:
+      format: "%(asctime)s %(levelname)s access [pid=%(process)d] - %(message)s"
+  handlers:
+    stdout:
+      class: logging.StreamHandler
+      level: INFO
+      formatter: base
+      stream: ext://sys.stdout
+    access:
+      class: logging.StreamHandler
+      level: INFO
+      formatter: access
+      stream: ext://sys.stdout
+  loggers:
+    multi_p_h:
+      level: INFO
+      handlers: [stdout]
+      propagate: false
+    uvicorn:
+      level: INFO
+      handlers: [stdout]
+      propagate: false
+    uvicorn.error:
+      level: INFO
+      handlers: [stdout]
+      propagate: false
+    uvicorn.access:
+      level: INFO
+      handlers: [access]
+      propagate: false
+  root:
+    level: WARNING
+    handlers: [stdout]

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+// Protobuf package name is independent of the Python package name.
+// Keeping it generic ("service") so it survives pygen.sh's text
+// substitution of the Python package name unchanged — substituting
+// inside protobuf's binary descriptor with a different-length string
+// would corrupt the length prefixes baked into _pb2.py.
+package service;
+
+service PingService {
+  rpc Ping(PingRequest) returns (PongResponse);
+  rpc Echo(EchoRequest) returns (EchoResponse);
+}
+
+message PingRequest {}
+
+message PongResponse {
+  string message = 1;
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoResponse {
+  string text = 1;
+}
+

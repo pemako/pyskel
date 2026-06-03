@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+# pyskel — bash-driven Python 3.12 service template generator.
+# No external dependencies beyond cp / mv / mkdir / cat / printf.
+set -euo pipefail
+
+if (( BASH_VERSINFO[0] < 4 )); then
+  printf 'ERROR: bash 4+ required (you have %s). Try: brew install bash\n' \
+    "$BASH_VERSION" >&2
+  exit 1
+fi
+
+shopt -s globstar nullglob dotglob
+
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly TPL_DIR="$SCRIPT_DIR/tpl"
+
+if [[ ! -d $TPL_DIR ]]; then
+  printf 'ERROR: template directory not found: %s\n' "$TPL_DIR" >&2
+  printf '  pyskel must live next to a tpl/ directory.\n' >&2
+  exit 1
+fi
+
+# ANSI colors (no tput).
+readonly C_RED=$'\e[1;31m'
+readonly C_GREEN=$'\e[1;32m'
+readonly C_YELLOW=$'\e[1;33m'
+readonly C_RESET=$'\e[0m'
+red()    { printf '%s%s%s\n' "$C_RED"    "$*" "$C_RESET"; }
+green()  { printf '%s%s%s\n' "$C_GREEN"  "$*" "$C_RESET"; }
+yellow() { printf '%s%s%s\n' "$C_YELLOW" "$*" "$C_RESET"; }
+
+# In-place literal substitution of $2 -> $3 in file $1, no regex.
+# `cat ... ; printf x` + `${var%x}` is the standard trick to preserve
+# trailing newlines that command substitution would otherwise strip.
+substitute_in_file() {
+  local file=$1 from=$2 to=$3 content
+  content=$(cat -- "$file"; printf x)
+  content=${content%x}
+  content=${content//"$from"/"$to"}
+  printf '%s' "$content" > "$file"
+}
+
+# Capitalize first letter only (bash 4 builtin); matches the existing
+# template pattern, e.g. simple -> Simple, multi_p_t -> Multi_p_t.
+capitalize() { printf '%s' "${1^}"; }
+
+list_templates() {
+  local d
+  for d in "$TPL_DIR"/*/; do
+    [[ -d $d ]] || continue
+    printf '%s\n' "$(basename "$d")"
+  done
+}
+
+generate() {
+  local full=$1 name=$2
+  local capital_full capital_name
+  capital_full=$(capitalize "$full")
+  capital_name=$(capitalize "$name")
+
+  local src="$TPL_DIR/$full"
+  local dst="$PWD/$name"
+
+  [[ -d $src ]]   || { red "template not found: $src"; return 1; }
+  [[ ! -e $dst ]] || { red "destination already exists: $dst"; return 1; }
+
+  green "copying $full -> $name"
+  cp -R "$src" "$dst"
+
+  # Strip Python bytecode and runtime state left by stray imports / runs.
+  # pyc files contain NUL bytes that would corrupt under text-only
+  # substitution; logs/ might be huge if a previous control.sh ran inside
+  # the template directory and would slow generation to a crawl.
+  find "$dst" -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null
+  find "$dst" -name '*.pyc' -type f -delete 2>/dev/null
+  rm -rf "$dst/logs" "$dst/data" 2>/dev/null
+
+  if [[ -d "$dst/$full" ]]; then
+    mv "$dst/$full" "$dst/$name"
+  fi
+
+  green "rewriting file contents"
+  local file
+  for file in "$dst"/**/*; do
+    [[ -f $file ]] || continue
+    # Skip files under any __pycache__/ that survived (defense in depth).
+    [[ $file == *"/__pycache__/"* ]] && continue
+    [[ $file == *.pyc ]] && continue
+    substitute_in_file "$file" "$full"         "$name"
+    substitute_in_file "$file" "$capital_full" "$capital_name"
+  done
+
+  green "renaming files"
+  for file in "$dst"/**/*; do
+    [[ -f $file ]] || continue
+    local base=${file##*/}
+    if [[ $base == *"$full"* ]]; then
+      local dir=${file%/*}
+      mv "$file" "$dir/${base//$full/$name}"
+    fi
+  done
+
+  green "done: $dst"
+}
+
+prompt_select() {
+  red 'Pemako Python Project Generator'
+  echo
+
+  local templates=()
+  local t
+  while IFS= read -r t; do templates+=("$t"); done < <(list_templates)
+
+  if (( ${#templates[@]} == 0 )); then
+    red "no templates found in $TPL_DIR"
+    return 1
+  fi
+
+  echo "available templates:"
+  local i
+  for i in "${!templates[@]}"; do
+    green "  $((i+1))) ${templates[$i]}"
+  done
+  echo
+
+  local choice full=""
+  yellow "select template (number or name):"
+  read -r choice
+  if [[ $choice =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#templates[@]} )); then
+    full=${templates[$((choice-1))]}
+  else
+    for t in "${templates[@]}"; do
+      [[ $t == "$choice" ]] && { full=$t; break; }
+    done
+  fi
+  [[ -n $full ]] || { red "invalid selection: $choice"; return 1; }
+
+  yellow "project name (snake_case, e.g. info_server):"
+  local name
+  read -r name
+  if [[ ! $name =~ ^[a-z][a-z0-9_]*$ ]]; then
+    red "invalid name: $name"
+    return 1
+  fi
+
+  generate "$full" "$name"
+}
+
+usage() {
+  cat <<EOF
+usage:
+  $(basename "$0")                     interactive
+  $(basename "$0") <template> <name>   non-interactive
+  $(basename "$0") --list              list templates
+
+templates are subdirectories of $TPL_DIR.
+EOF
+}
+
+case ${1:-} in
+  -h|--help) usage ;;
+  --list)    list_templates ;;
+  '')        prompt_select ;;
+  *)
+    if (( $# != 2 )); then
+      usage >&2
+      exit 1
+    fi
+    generate "$1" "$2"
+    ;;
+esac

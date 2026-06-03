@@ -1,0 +1,33 @@
+---
+service:
+  workers: 4
+
+logs:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    base:
+      format: "%(asctime)s %(levelname)s %(name)s [pid=%(process)d %(processName)s] - %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: INFO
+      formatter: base
+      stream: ext://sys.stdout
+    timefile:
+      class: logging.handlers.TimedRotatingFileHandler
+      level: DEBUG
+      formatter: base
+      filename: logs/multi_p.log
+      when: D
+      interval: 1
+      backupCount: 7
+      encoding: utf-8
+  loggers:
+    multi_p:
+      level: INFO
+      handlers: [timefile, console]
+      propagate: false
+  root:
+    level: WARNING
+    handlers: [console]

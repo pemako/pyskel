@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi_t_q"
+version = "0.1.0"
+description = "Multi-threaded task queue worker with retry and durable replay"
+requires-python = ">=3.12"
+dependencies = [
+  "dynaconf>=3.2",
+]
+
+[project.scripts]
+multi_t_q = "multi_t_q.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["multi_t_q*"]

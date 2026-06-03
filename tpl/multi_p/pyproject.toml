@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi_p"
+version = "0.1.0"
+description = "Multi-process Python service"
+requires-python = ">=3.12"
+dependencies = [
+  "dynaconf>=3.2",
+]
+
+[project.scripts]
+multi_p = "multi_p.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["multi_p*"]

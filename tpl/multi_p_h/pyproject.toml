@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multi_p_h"
+version = "0.1.0"
+description = "Multi-process HTTP service (FastAPI + uvicorn)"
+requires-python = ">=3.12"
+dependencies = [
+  "dynaconf>=3.2",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "pydantic>=2.5",
+]
+
+[project.scripts]
+multi_p_h = "multi_p_h.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["multi_p_h*"]

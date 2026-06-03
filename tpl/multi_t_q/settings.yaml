@@ -1,0 +1,37 @@
+---
+service:
+  workers: 4
+  queue_max: 1000           # bounded; producer blocks on put when full
+  retry_attempts: 3         # times to retry a failing task before giving up
+  retry_interval: 1         # seconds between retries
+  todo_file: data/todo.pickle  # where leftover + failed tasks persist on shutdown
+
+logs:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    base:
+      format: "%(asctime)s %(levelname)s %(name)s [%(threadName)s] - %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: INFO
+      formatter: base
+      stream: ext://sys.stdout
+    timefile:
+      class: logging.handlers.TimedRotatingFileHandler
+      level: DEBUG
+      formatter: base
+      filename: logs/multi_t_q.log
+      when: D
+      interval: 1
+      backupCount: 7
+      encoding: utf-8
+  loggers:
+    multi_t_q:
+      level: INFO
+      handlers: [timefile, console]
+      propagate: false
+  root:
+    level: WARNING
+    handlers: [console]
