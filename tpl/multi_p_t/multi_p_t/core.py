@@ -129,7 +129,7 @@ def _worker_main(
             logger.debug("serve thread exiting", exc_info=True)
 
     serve_thread = threading.Thread(
-        target=_serve, name=f"thrift-serve-{worker_id}"
+        target=_serve, name=f"thrift-serve-{worker_id}", daemon=True
     )
     serve_thread.start()
     logger.info(
@@ -148,12 +148,21 @@ def _worker_main(
             time.sleep(0.5)
     finally:
         logger.info("worker %d draining (grace=%ds)", worker_id, grace)
-        # Two-step: set the stop flag first so accept() errors are
-        # treated as graceful exit, then close the listen socket so
-        # the blocking accept() unblocks immediately.
+        # Three-step shutdown:
+        # 1. Set the stop flag so accept() errors are treated as graceful exit.
+        # 2. shutdown(SHUT_RDWR) before close — on Linux a plain close() does
+        #    NOT wake another thread blocked in accept(); shutdown() does.
+        #    macOS happens to wake accept on close() too, but Linux does not.
+        # 3. close() to release the fd.
+        # Plus: serve_thread is daemon=True so even if accept() somehow stays
+        # stuck, the worker process can still exit when _worker_main returns.
         server.stop()
         try:
             if transport.handle is not None:
+                try:
+                    transport.handle.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass  # already shutdown / not connected
                 transport.handle.close()
         except Exception:
             pass
