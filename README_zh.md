@@ -1,5 +1,7 @@
 # pyskel
 
+[![e2e](https://github.com/pemako/pyskel/actions/workflows/e2e.yml/badge.svg)](https://github.com/pemako/pyskel/actions/workflows/e2e.yml)
+
 [English](README.md)
 
 bash 驱动的 Python 3.12 服务模板生成器。

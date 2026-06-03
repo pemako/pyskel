@@ -1,5 +1,7 @@
 # pyskel
 
+[![e2e](https://github.com/pemako/pyskel/actions/workflows/e2e.yml/badge.svg)](https://github.com/pemako/pyskel/actions/workflows/e2e.yml)
+
 [中文](README_zh.md)
 
 A bash-driven scaffolder for Python 3.12 service templates.
