@@ -35,6 +35,16 @@ check() {
   fi
 }
 
+declare -i SKIPPED=0
+declare -a SKIP_NAMES=()
+
+skip() {
+  local name=$1 reason=$2
+  printf '%s∼%s %-12s %s%s%s\n' "$Y" "$N" "$name" "$D" "$reason" "$N"
+  SKIPPED+=1
+  SKIP_NAMES+=("$name")
+}
+
 # Generate + install + start helper. Sets $LOG_PATH for the caller.
 prepare() {
   local tpl=$1 name=$2
@@ -200,6 +210,63 @@ run_aio() {
   check "$n" OK "$ticks ticks across workers, clean stop"
 }
 
+run_mq() {
+  local n=mq gen=mq_test
+  local url=${REDIS_URL:-}
+  if [[ -z $url ]]; then
+    skip "$n" "REDIS_URL not set"
+    return
+  fi
+  if ! python3 -c "import socket
+from urllib.parse import urlparse
+u = urlparse('$url')
+s = socket.socket()
+s.settimeout(1)
+s.connect((u.hostname, u.port or 6379))
+s.close()" 2>/dev/null; then
+    skip "$n" "redis unreachable at $url"
+    return
+  fi
+
+  prepare "$n" "$gen"
+  DYNACONF_REDIS__URL="$url" PATH=".venv/bin:$PATH" ./control.sh start >/dev/null
+  sleep 2
+
+  # produce 3 messages on the rewritten stream name (pyskel rewrites mq → $gen,
+  # so the template's "mq:tasks" stream becomes "${gen}:tasks").
+  local stream="${gen}:tasks"
+  local produced
+  produced=$(REDIS_URL="$url" STREAM="$stream" .venv/bin/python - <<'PYEOF' 2>&1
+import asyncio
+import os
+from redis.asyncio import Redis
+
+async def main():
+    r = Redis.from_url(os.environ["REDIS_URL"], decode_responses=True)
+    for i in range(3):
+        await r.xadd(os.environ["STREAM"], {"i": str(i), "msg": "hello"})
+    await r.aclose()
+    print("produced=3")
+
+asyncio.run(main())
+PYEOF
+  )
+
+  sleep 2
+  local handled=$(grep -c "got " "logs/$gen.log" 2>/dev/null || echo 0)
+  PATH=".venv/bin:$PATH" ./control.sh stop >/dev/null
+  sleep 0.5
+
+  [[ $produced == *"produced=3"* ]] || { check "$n" FAIL "produce: $produced"; return; }
+  if ! grep -q "service stopped" "logs/$gen.log" 2>/dev/null; then
+    check "$n" FAIL "no clean stop log"; return
+  fi
+  if (( handled < 3 )); then
+    check "$n" FAIL "only $handled/3 messages handled"; return
+  fi
+  check "$n" OK "$handled/3 messages handled, clean stop"
+}
+
 echo "${Y}pyskel e2e suite${N}  (work dir: ${WORK})"
 echo
 
@@ -211,13 +278,18 @@ run_multi_p_h
 run_multi_p_g
 run_multi_p_t
 run_aio
+run_mq
 
 echo
 echo "─────────────────────────────────"
 if (( FAILED == 0 )); then
-  echo "${G}all $PASSED templates passed${N}"
+  if (( SKIPPED == 0 )); then
+    echo "${G}all $PASSED templates passed${N}"
+  else
+    echo "${G}$PASSED passed${N}, ${Y}$SKIPPED skipped${N}: ${SKIP_NAMES[*]}"
+  fi
 else
-  echo "${R}$FAILED failed${N}: ${FAIL_NAMES[*]}    ${G}$PASSED passed${N}"
+  echo "${R}$FAILED failed${N}: ${FAIL_NAMES[*]}    ${G}$PASSED passed${N}    ${Y}$SKIPPED skipped${N}"
 fi
 
 exit "$FAILED"
