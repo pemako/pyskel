@@ -23,6 +23,7 @@ bash 驱动的 Python 3.12 服务模板生成器。
 | [`multi_p_h`](tpl/multi_p_h/README_zh.md) | FastAPI + uvicorn prefork（HTTP/JSON）     | 公开 API、浏览器友好 debug、REST 服务        |
 | [`multi_p_g`](tpl/multi_p_g/README_zh.md) | grpcio + protobuf，多进程 + `SO_REUSEPORT` | 内部 RPC、高 RPS 服务到服务、streaming       |
 | [`multi_p_t`](tpl/multi_p_t/README_zh.md) | Apache Thrift，多进程 + `SO_REUSEPORT`     | 老 Thrift 系统对接（HBase gateway、Hive 等） |
+| [`aio`](tpl/aio/README_zh.md)             | 单进程 asyncio 循环 + TaskGroup            | 异步 IO 服务（HTTP 客户端、DB、外部 broker）  |
 
 2026 年新 RPC 服务、没有 Thrift 历史包袱的话，选 `multi_p_g` 优于
 `multi_p_t`。新 HTTP 服务选 `multi_p_h`。

@@ -24,6 +24,7 @@ README has detailed "when to use" / "when not to use" guidance.
 | [`multi_p_h`](tpl/multi_p_h/README.md) | FastAPI + uvicorn prefork (HTTP/JSON)                       | Public APIs, browser-friendly debug, REST services     |
 | [`multi_p_g`](tpl/multi_p_g/README.md) | grpcio + protobuf, multi-process via `SO_REUSEPORT`         | Internal RPC, high-RPS service-to-service, streaming   |
 | [`multi_p_t`](tpl/multi_p_t/README.md) | Apache Thrift, multi-process via `SO_REUSEPORT`             | Legacy Thrift integrations (HBase gateway, Hive, etc.) |
+| [`aio`](tpl/aio/README.md)             | Single-process asyncio loop with TaskGroup                  | Async IO services (HTTP clients, DB drivers, brokers)  |
 
 For new RPC services in 2026 with no Thrift constraint, prefer
 `multi_p_g` over `multi_p_t`. For new HTTP services, prefer `multi_p_h`.
