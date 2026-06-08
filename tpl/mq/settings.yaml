@@ -1,0 +1,41 @@
+---
+service:
+  consumers: 4
+  max_retries: 3
+  claim_idle_ms: 30000
+  reaper_interval_s: 5.0
+
+redis:
+  url: "redis://localhost:6379/0"
+  stream: "mq:tasks"
+  group: "mq-workers"
+
+logs:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    base:
+      format: "%(asctime)s %(levelname)s %(name)s [%(taskName)s] - %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: INFO
+      formatter: base
+      stream: ext://sys.stdout
+    timefile:
+      class: logging.handlers.TimedRotatingFileHandler
+      level: DEBUG
+      formatter: base
+      filename: logs/mq.log
+      when: D
+      interval: 1
+      backupCount: 7
+      encoding: utf-8
+  loggers:
+    mq:
+      level: INFO
+      handlers: [timefile, console]
+      propagate: false
+  root:
+    level: WARNING
+    handlers: [console]
