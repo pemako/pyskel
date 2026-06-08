@@ -60,7 +60,8 @@ class MqService:
         except* asyncio.CancelledError:
             pass
         finally:
-            await self._redis.aclose()
+            if self._redis is not None:
+                await self._redis.aclose()
 
         self.logger.info("service stopped")
 
@@ -79,6 +80,8 @@ class MqService:
                     continue
                 for _stream, messages in resp or []:
                     for msg_id, fields in messages:
+                        if self._stop.is_set():
+                            break
                         try:
                             await self.handler.handle(msg_id, fields)
                             await self._redis.xack(self._stream, self._group, msg_id)
@@ -110,6 +113,8 @@ class MqService:
                     continue
 
                 for msg_id, fields in claimed:
+                    if self._stop.is_set():
+                        break
                     try:
                         pending = await self._redis.xpending_range(
                             self._stream, self._group, min=msg_id, max=msg_id, count=1
