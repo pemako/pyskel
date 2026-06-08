@@ -1,5 +1,7 @@
 # aio
 
+[中文](README_zh.md)
+
 Asyncio-first single-process Python service skeleton.
 
 ## Layout
