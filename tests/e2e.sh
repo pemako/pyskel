@@ -186,6 +186,20 @@ EOF
   check "$n" OK "ping=pong, echo round-trip, clean stop"
 }
 
+run_aio() {
+  local n=aio gen=aio_test
+  prepare "$n" "$gen"
+  PATH=".venv/bin:$PATH" ./control.sh start >/dev/null
+  sleep 2
+  local ticks=$(grep -c "tick" "logs/$gen.log" 2>/dev/null || echo 0)
+  PATH=".venv/bin:$PATH" ./control.sh stop >/dev/null
+  sleep 0.5
+  if ! grep -q "service stopped" "logs/$gen.log" 2>/dev/null; then
+    check "$n" FAIL "no clean stop log"; return
+  fi
+  check "$n" OK "$ticks ticks across workers, clean stop"
+}
+
 echo "${Y}pyskel e2e suite${N}  (work dir: ${WORK})"
 echo
 
@@ -196,6 +210,7 @@ run_multi_p
 run_multi_p_h
 run_multi_p_g
 run_multi_p_t
+run_aio
 
 echo
 echo "─────────────────────────────────"
